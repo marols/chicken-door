@@ -5,6 +5,7 @@
 #include <TFT.h>  
 #include <SPI.h>
 
+// Set open and close times
 byte startHour=7;
 byte startMinute=00;
 byte endHour= 20;
@@ -55,28 +56,27 @@ char openTimePrintout[6];
 char closeTimePrintout[6];
 
 void setup() {
-  Serial.begin(9600);           // set up Serial library at 9600 bps
-  while (!Serial) ; // wait for serial
+  Serial.begin(9600);           // Set up Serial library at 9600 bps
+  while (!Serial) ; // Wait for serial
   delay(200);
   Serial.println("Chickenz running!");
   Serial.println("-------------------");
 
-  AFMS.begin();  // create with the default frequency 1.6KHz
-  //AFMS.begin(1000);  // OR with a different frequency, say 1KHz
+  AFMS.begin();  // Create with the default frequency 1.6KHz
   
   // Set the speed to start, from 0 (off) to 255 (max speed)
   myMotor->setSpeed(255);
   myMotor->run(FORWARD);
-  // turn on motor
+  // Turn on motor
   myMotor->run(RELEASE);
 
-  pinMode(ledPin, OUTPUT);  // declare LED as output
+  pinMode(ledPin, OUTPUT);  // Declare LED as output
   
-  pinMode(inButtonUp, INPUT);    // declare pushbutton as input
-  pinMode(inButtonDown, INPUT);    // declare pushbutton as input
+  pinMode(inButtonUp, INPUT);    // Declare pushbutton as input
+  pinMode(inButtonDown, INPUT);    // Declare pushbutton as input
 
-  pinMode(inTouchUp, INPUT);    // declare push sensor as input
-  pinMode(inTouchDown, INPUT);    // declare push sensor as input
+  pinMode(inTouchUp, INPUT);    // Declare push sensor as input
+  pinMode(inTouchDown, INPUT);    // Declare push sensor as input
 
 
   // Initialize the library
@@ -106,14 +106,15 @@ void setup() {
 }
 
 void loop() {  
-  // read input value from buttons
+  // Read input value from buttons
   valButtonUp = digitalRead(inButtonUp);
   valButtonDown = digitalRead(inButtonDown);
 
-  // read door sensors  
+  // Read door sensors  
   valTouchUp = digitalRead(inTouchUp);
   valTouchDown = digitalRead(inTouchDown); 
-  
+
+  // Detect if door is open or closed
   if (valTouchUp == LOW && !doorIsOpen && engineRunning) {
     digitalWrite(ledPin, HIGH);
     Serial.print("Touching up\n");
@@ -126,18 +127,18 @@ void loop() {
     digitalWrite(ledPin, LOW);
   }    
   
-  //get current timestamp
+  // Get current timestamp
   now_ = RTC.get();
   
-  // make current date and time structure
+  // Make current date and time structure
   breakTime(now_, tm);
   
-  // make auxiliary structures to be more human editable and friendly
+  // Make auxiliary structures to be more human editable and friendly
   if(update_tm){
     memcpy(&tm_hour_start, &tm, sizeof(tm));
     memcpy(&tm_hour_end, &tm, sizeof(tm));
     
-    // change auxiliary structures to meet your start and end schedule 
+    // Change auxiliary structures to meet your start and end schedule 
     tm_hour_start.Hour = startHour;
     tm_hour_start.Minute = startMinute;
     tm_hour_start.Second = 0;
@@ -145,11 +146,11 @@ void loop() {
     tm_hour_end.Minute = endMinute;
     tm_hour_end.Second = 0;
     
-    // reverse process to get timestamps
+    // Reverse process to get timestamps
     t_hour_start = makeTime(tm_hour_start);
     t_hour_end = makeTime(tm_hour_end);
 
-    // check if end time is past midnight and correct if needed
+    // Check if end time is past midnight and correct if needed
     if (startHour > endHour) //past midnight correction
       t_hour_end = t_hour_end + SECS_PER_DAY;
   }
@@ -163,14 +164,14 @@ void loop() {
       if(update_tm)  
         update_tm = 0;
   
-      //do something if soo...
+      // Do something if current time is inside interval
       Serial.print("Inside interval\n");
       openDoor();
       
     }else{
       if(update_tm == 0)  
         update_tm = 1;
-      // do something if not...
+      // Do something else if current time is outside interval
       Serial.print("Outside interval\n");
       closeDoor();
     }
@@ -203,13 +204,14 @@ void loop() {
 void doorMove(uint8_t direction) {
   uint8_t i;
   
+  printStatus(enginePrintout, "On", 45);
+  
   myMotor->run(direction);
   for (i=0; i<255; i++) {
     myMotor->setSpeed(i);  
     delay(5);
   }
   engineRunning = 1;
-  printStatus(enginePrintout, "On", 45);
 }
 
 void stopDoor() {
@@ -247,11 +249,11 @@ void openDoor() {
 
 void printStatus(char variable[6], String status, int y) {
   int x = 95;
-  // remove current status
+  // Remove current status
   TFTscreen.stroke(0, 0, 0);
   TFTscreen.text(variable, x, y);
 
-  // print new status
+  // Print new status
   TFTscreen.stroke(50, 50, 50);
   status.toCharArray(variable, 6);
   TFTscreen.text(variable, x, y);
