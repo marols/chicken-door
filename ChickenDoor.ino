@@ -5,15 +5,16 @@
 #include <TFT.h>  
 #include <SPI.h>
 
-byte startHour=13;
-byte startMinute=54;
+byte startHour=7;
+byte startMinute=00;
 byte endHour= 20;
-byte endMinute= 10;
+byte endMinute= 30;
 
 tmElements_t tm, tm_hour_start, tm_hour_end;
 time_t now_, t_hour_start, t_hour_end;
 bool update_tm = 1;
 
+// Initialize status variables
 bool doorIsOpen = 0;
 bool engineRunning = 0;
 bool manualOverride = 0;
@@ -34,36 +35,31 @@ int valTouchDown = 0;     // variable for reading the pin statu
 
 // Create the motor shield object with the default I2C address
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
-// Or, create it with a different I2C address (say for stacking)
-// Adafruit_MotorShield AFMS = Adafruit_MotorShield(0x61); 
 
 // Select which 'port' M1, M2, M3 or M4. In this case, M1
 Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
-// You can also make another motor on port M2
-//Adafruit_DCMotor *myOtherMotor = AFMS.getMotor(2);
 
 // TFT pin definition for Arduino UNO
 #define cs   10
 #define dc   9
 #define rst  8
 
-
-// create an instance of the library
+// Create an instance of the TFT library
 TFT TFTscreen = TFT(cs, dc, rst);
-char doorPrintout[6]= "Shut";
-char enginePrintout[6]= "Off";
-char systemPrintout[6]= "Auto";
-char openTimePrintout[6] = "00:00";
-char closeTimePrintout[6] = "23:59";
+
+// Initialise status messages
+char doorPrintout[6];
+char enginePrintout[6];
+char systemPrintout[6];
+char openTimePrintout[6];
+char closeTimePrintout[6];
 
 void setup() {
   Serial.begin(9600);           // set up Serial library at 9600 bps
   while (!Serial) ; // wait for serial
   delay(200);
-  Serial.println("DS1307RTC Read Test");
+  Serial.println("Chickenz running!");
   Serial.println("-------------------");
-
-  Serial.println("Adafruit Motorshield v2 - DC Motor test!");
 
   AFMS.begin();  // create with the default frequency 1.6KHz
   //AFMS.begin(1000);  // OR with a different frequency, say 1KHz
@@ -83,15 +79,16 @@ void setup() {
   pinMode(inTouchDown, INPUT);    // declare push sensor as input
 
 
-  //initialize the library
+  // Initialize the library
   TFTscreen.begin();
-  // clear the screen with a black background
+  // Clear the screen with a black background
   TFTscreen.background(0, 0, 0);
-  // set font color
+  // Set font color
   TFTscreen.stroke(50, 50, 50);
-  //set the text size
+  //Set the text size
   TFTscreen.setTextSize(2);
 
+  // Print static text
   TFTscreen.text("< Chickenz >", 5, 2);
   TFTscreen.text("------------", 5, 12);
   TFTscreen.text("Door:", 5, 25);
@@ -100,11 +97,12 @@ void setup() {
   TFTscreen.text("Open:", 5, 85);
   TFTscreen.text("Close:", 5, 105);
 
+  // Print default status messages
   printStatus(doorPrintout, "Shut", 25);
   printStatus(enginePrintout, "Off", 45);
   printStatus(systemPrintout, "Auto", 65);
-  printStatus(openTimePrintout, "00:00", 85);
-  printStatus(closeTimePrintout, "23:59", 105);
+  printStatus(openTimePrintout, getOpenTime(), 85);
+  printStatus(closeTimePrintout, getCloseTime(), 105);
 }
 
 void loop() {  
@@ -202,13 +200,6 @@ void loop() {
   }
 }
 
-void print2digits(int number) {
-  if (number >= 0 && number < 10) {
-    Serial.write('0');
-  }
-  Serial.print(number);
-}
-
 void doorMove(uint8_t direction) {
   uint8_t i;
   
@@ -264,4 +255,25 @@ void printStatus(char variable[6], String status, int y) {
   TFTscreen.stroke(50, 50, 50);
   status.toCharArray(variable, 6);
   TFTscreen.text(variable, x, y);
+}
+
+String getOpenTime() {
+  String openTime = print2digits(startHour) + ":" + print2digits(startMinute);
+  Serial.print("Open time is: ");
+  Serial.println(openTime);
+  return openTime;
+}
+
+String getCloseTime() {
+  String closeTime = print2digits(endHour) + ":" + print2digits(endMinute);
+  Serial.print("Close time is: ");
+  Serial.println(closeTime);
+  return closeTime;
+}
+
+String print2digits(int number) {
+  if (number >= 0 && number < 10) {
+    return "0" + String(number);
+  }
+  return String(number);
 }
