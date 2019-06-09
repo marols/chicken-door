@@ -20,7 +20,7 @@ bool doorIsOpen = 0;
 bool engineRunning = 0;
 bool manualOverride = 0;
 
-int ledPin = 13; // choose the pin for the LED
+int ledPin = 12; // choose the pin for the LED
 
 // Initialize buttons
 int inButtonUp = 3;   // choose the input pin (for a pushbutton)
@@ -48,7 +48,7 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
 // Create an instance of the TFT library
 TFT TFTscreen = TFT(cs, dc, rst);
 
-// Initialise status messages
+// Initialize status messages
 char doorPrintout[6];
 char enginePrintout[6];
 char systemPrintout[6];
