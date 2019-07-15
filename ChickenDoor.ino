@@ -4,6 +4,7 @@
 #include <Adafruit_MotorShield.h>
 #include <SparkFunColorLCDShield.h>
 #include <SPI.h>
+#include <TimeLord.h>
 
 // Set open and close times
 byte startHour=7;
@@ -52,12 +53,21 @@ char systemPrintout[6];
 char openTimePrintout[6];
 char closeTimePrintout[6];
 
+
+// TimeLord settings
+float const LONGITUDE = 13.00073;
+float const LATITUDE = 55.60587;
+TimeLord tardis; 
+byte today[] = { 0, 0, 12, 9, 7, 19 }; // store today's date (at noon) in an array for TimeLord to use
+
 // 24 hour loop variable
 time_t previousWeekday;
+
 void setup() {
   Serial.begin(9600);           // Set up Serial library at 9600 bps
   while (!Serial) ; // Wait for serial
   delay(200);
+  
   Serial.println("Chickenz running!");
   Serial.println("-------------------");
 
@@ -98,6 +108,12 @@ void setup() {
   printStatus(systemPrintout, "Auto", 65, V7);
   printStatus(openTimePrintout, getOpenTime(), 85, V8);
   printStatus(closeTimePrintout, getCloseTime(), 105, V9);
+
+  // TimeLord setup
+  tardis.TimeZone(2*60);
+  tardis.Position(LATITUDE, LONGITUDE); // tell TimeLord where in the world we are
+  tardis.DstRules(3,4,10,4, 60); // Sista söndagen i mars till sista söndagen i oktober
+
   // Init 24 hour loop
   previousWeekday = now();
 }
@@ -172,19 +188,19 @@ void loop() {
         update_tm = 0;
   
       // Do something if current time is inside interval
-      Serial.print("Inside interval\n");
       openDoor();
       
     }else{
       if(update_tm == 0)  
         update_tm = 1;
       // Do something else if current time is outside interval
-      Serial.print("Outside interval\n");
       closeDoor();
     }
   }
 
+  // Logic for detecting if door is open or closed
   if (valButtonUp == HIGH && manualOverride && doorIsOpen) {
+    digitalWrite(ledPin, HIGH);  // turn LED ON
     Serial.print("Re-activating automatic schedule");
     manualOverride = false;
     printStatus(systemPrintout, "Auto", 65, V7);
@@ -205,6 +221,29 @@ void loop() {
     } else {
       digitalWrite(ledPin, LOW);  // turn LED OFF
     }
+  }
+
+  // Daily check update of sunset time
+  time_t currentWeekday = weekday(now());
+  
+  if (currentWeekday != previousWeekday) { // If it is a new day, update sunset time
+    // Update today's date
+    today[3] = tm.Day;
+    today[4] = tm.Month;
+    today[5] = tm.Year; 
+
+    // Check sunset time
+    if (tardis.SunSet(today)) { // if the sun will set today (it might not, in the [ant]arctic)    
+       Serial.print("Sunset: ");
+       Serial.print((int) today[tl_hour]);
+       Serial.print(":");
+       Serial.println((int) today[tl_minute]);
+       endHour = today[tl_hour] - 1;
+       endMinute = today[tl_minute];
+       printStatus(closeTimePrintout, getCloseTime(), 105, V9);
+       previousWeekday = currentWeekday;
+     }
+     Serial.println();
   }
 }
 
