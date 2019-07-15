@@ -71,19 +71,16 @@ void setup() {
   Serial.println("Chickenz running!");
   Serial.println("-------------------");
 
+  // Init Adafruit Motor shield
   AFMS.begin();  // Create with the default frequency 1.6KHz
-  
-  // Set the speed to start, from 0 (off) to 255 (max speed)
-  myMotor->setSpeed(255);
+  myMotor->setSpeed(255); // Set the speed to start, from 0 (off) to 255 (max speed)
   myMotor->run(FORWARD);
-  // Turn on motor
-  myMotor->run(RELEASE);
+  myMotor->run(RELEASE); // Turn on motor
 
+  // Declare pins
   pinMode(ledPin, OUTPUT);  // Declare LED as output
-  
   pinMode(inButtonUp, INPUT);    // Declare pushbutton as input
   pinMode(inButtonDown, INPUT);    // Declare pushbutton as input
-
   pinMode(inTouchUp, INPUT);    // Declare push sensor as input
   pinMode(inTouchDown, INPUT);    // Declare push sensor as input
 
