@@ -1,3 +1,5 @@
+#define BLYNK_PRINT Serial
+
 #include <Wire.h>
 #include <TimeLib.h>
 #include <DS1307RTC.h>
@@ -5,6 +7,36 @@
 #include <SparkFunColorLCDShield.h>
 #include <SPI.h>
 #include <TimeLord.h>
+#include <Ethernet2.h>
+#include <BlynkSimpleEthernet2.h>
+
+// Blynk auth token
+char auth[] = "EFirYfEkmK7Kud24TrEptNQ1Gj8g-msn";
+int blynkUpButtonPressed = LOW;
+int blynkDownButtonPressed = LOW;
+
+// Virtual Blynk UP button handler
+BLYNK_WRITE(V0)
+{
+  int pinValue = param.asInt(); // assigning incoming value from pin V1 to a variable
+
+  if(pinValue) {
+    Serial.print("UP: ");
+    Serial.println(pinValue);
+    blynkUpButtonPressed = HIGH;
+  }
+}
+
+// Virtual Blynk DOWN button handler
+BLYNK_WRITE(V1)
+{
+  int pinValue = param.asInt(); // assigning incoming value from pin V1 to a variable
+  if(pinValue) {
+    Serial.print("DOWN: ");
+    Serial.println(pinValue);
+    blynkDownButtonPressed = HIGH;
+  }
+}
 
 // Set open and close times
 byte startHour=7;
@@ -23,17 +55,17 @@ bool manualOverride = 0;
 int timeoutCounter = 3000;
 bool timerOn = 0;
 
-int ledPin = 12; // choose the pin for the LED
+int ledPin = 10; // choose the pin for the LED
 
 // Initialize buttons
-int inButtonUp = 3;   // choose the input pin (for a pushbutton)
-int inButtonDown = 4;   // choose the input pin (for a pushbutton)
+int inButtonUp = 28;   // choose the input pin (for a pushbutton)
+int inButtonDown = 26;   // choose the input pin (for a pushbutton)
 int valButtonUp = 0;     // variable for reading the pin status
 int valButtonDown = 0;     // variable for reading the pin status
 
 // Initialize door sensors
-int inTouchUp = 6;   // choose the input pin (for a pushbutton)
-int inTouchDown = 7;   // choose the input pin (for a pushbutton)
+int inTouchUp = 30;   // choose the input pin (for a pushbutton)
+int inTouchDown = 24;   // choose the input pin (for a pushbutton)
 int valTouchUp = 0;     // variable for reading the pin status
 int valTouchDown = 0;     // variable for reading the pin statu
 
@@ -70,6 +102,8 @@ void setup() {
   
   Serial.println("Chickenz running!");
   Serial.println("-------------------");
+
+  Blynk.begin(auth);  // Initialise Blynk
 
   // Init Adafruit Motor shield
   AFMS.begin();  // Create with the default frequency 1.6KHz
@@ -115,10 +149,13 @@ void setup() {
   previousWeekday = now();
 }
 
-void loop() {  
-  // Read input value from buttons
-  valButtonUp = digitalRead(inButtonUp);
-  valButtonDown = digitalRead(inButtonDown);
+void loop() {
+  // Blynk start
+  Blynk.run();
+  
+  // Read input value from physical and virtual Blynk buttons 
+  valButtonUp = !digitalRead(inButtonUp) || blynkUpButtonPressed;
+  valButtonDown = !digitalRead(inButtonDown) || blynkDownButtonPressed;
 
   // Read door sensors  
   valTouchUp = digitalRead(inTouchUp);
@@ -131,11 +168,11 @@ void loop() {
   }
 
   // Detect if door is open or closed
-  if (valTouchUp == LOW && !doorIsOpen && engineRunning) {
+  if (valTouchUp == HIGH && !doorIsOpen && engineRunning) {
     digitalWrite(ledPin, HIGH);
     Serial.print("Touching up\n");
     doorIsUp();
-  } else if (valTouchDown == LOW && doorIsOpen && engineRunning) {
+  } else if (valTouchDown == HIGH && doorIsOpen && engineRunning) {
     digitalWrite(ledPin, HIGH);
     Serial.print("Touching down\n");
     doorIsDown();
@@ -242,6 +279,10 @@ void loop() {
      }
      Serial.println();
   }
+
+  // Reset Blynk button values
+  blynkUpButtonPressed = LOW;
+  blynkDownButtonPressed = LOW;
 }
 
 void doorMove(uint8_t direction) {
@@ -310,6 +351,7 @@ void printStatus(char variable[6], String status, int y, int pin) {
   // Print new status
   status.toCharArray(variable, 6);
   lcd.setStr(variable, y, x, BLACK, WHITE);
+  writeToBlynk(pin, variable);
 }
 
 String getOpenTime() {
@@ -341,4 +383,8 @@ void startTimer(int time) {
 void stopTimer() {
   timerOn = 0;
   timeoutCounter = -1;
+}
+
+void writeToBlynk(int pin, char variable[6]) {
+  Blynk.virtualWrite(pin, variable);
 }
