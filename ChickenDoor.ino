@@ -19,6 +19,8 @@ bool update_tm = 1;
 bool doorIsOpen = 0;
 bool engineRunning = 0;
 bool manualOverride = 0;
+int timeoutCounter = 3000;
+bool timerOn = 0;
 
 int ledPin = 12; // choose the pin for the LED
 
@@ -50,6 +52,8 @@ char systemPrintout[6];
 char openTimePrintout[6];
 char closeTimePrintout[6];
 
+// 24 hour loop variable
+time_t previousWeekday;
 void setup() {
   Serial.begin(9600);           // Set up Serial library at 9600 bps
   while (!Serial) ; // Wait for serial
@@ -94,6 +98,8 @@ void setup() {
   printStatus(systemPrintout, "Auto", 65, V7);
   printStatus(openTimePrintout, getOpenTime(), 85, V8);
   printStatus(closeTimePrintout, getCloseTime(), 105, V9);
+  // Init 24 hour loop
+  previousWeekday = now();
 }
 
 void loop() {  
@@ -105,6 +111,12 @@ void loop() {
   valTouchUp = digitalRead(inTouchUp);
   valTouchDown = digitalRead(inTouchDown); 
 
+  // Tick safety timeout counter
+  if(timerOn && timeoutCounter>=0) {
+    timeoutCounter = timeoutCounter-1;
+    Serial.println(timeoutCounter);
+  }
+
   // Detect if door is open or closed
   if (valTouchUp == LOW && !doorIsOpen && engineRunning) {
     digitalWrite(ledPin, HIGH);
@@ -114,9 +126,13 @@ void loop() {
     digitalWrite(ledPin, HIGH);
     Serial.print("Touching down\n");
     doorIsDown();
+  } else if (timeoutCounter == 0) {
+    Serial.println("Safety timeout reached, door stopped");
+    doorFailed();
+    printStatus(systemPrintout, "Fail", 65, V7);
   } else {
     digitalWrite(ledPin, LOW);
-  }    
+  }
   
   // Get current timestamp
   now_ = RTC.get();
@@ -206,6 +222,7 @@ void doorMove(uint8_t direction) {
 }
 
 void stopDoor() {
+  stopTimer();
   myMotor->run(RELEASE);
   engineRunning = 0;
   delay(500); //Wait for engine to stop
@@ -226,9 +243,17 @@ void doorIsUp() {
     printStatus(doorPrintout, "Open", 25, V5);
 }
 
+void doorFailed() {
+    stopDoor();
+    doorIsOpen = 1;
+    Serial.print("Door failed. Press down to reset\n");
+    printStatus(doorPrintout, "?", 25, V5);
+}
+
 void closeDoor() {  
   if(doorIsOpen && !engineRunning) {
     printStatus(doorPrintout, "\\/", 25, V5);
+    startTimer(1800);
     doorMove(FORWARD);
   }
 }
@@ -236,6 +261,7 @@ void closeDoor() {
 void openDoor() {
   if(!doorIsOpen && !engineRunning) {
     printStatus(doorPrintout, "/\\", 25, V5);
+    startTimer(2000);
     doorMove(BACKWARD);
   }
 }
@@ -269,4 +295,14 @@ String print2digits(int number) {
     return "0" + String(number);
   }
   return String(number);
+}
+
+void startTimer(int time) {
+  timeoutCounter = time;
+  timerOn = 1;
+}
+
+void stopTimer() {
+  timerOn = 0;
+  timeoutCounter = -1;
 }
