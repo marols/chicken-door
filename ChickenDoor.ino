@@ -2,7 +2,7 @@
 #include <TimeLib.h>
 #include <DS1307RTC.h>
 #include <Adafruit_MotorShield.h>
-#include <TFT.h>  
+#include <SparkFunColorLCDShield.h>
 #include <SPI.h>
 
 // Set open and close times
@@ -40,13 +40,8 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 // Select which 'port' M1, M2, M3 or M4. In this case, M1
 Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
 
-// TFT pin definition for Arduino UNO
-#define cs   10
-#define dc   9
-#define rst  8
-
 // Create an instance of the TFT library
-TFT TFTscreen = TFT(cs, dc, rst);
+LCDShield lcd;  // Creates an LCDShield, named lcd
 
 // Initialize status messages
 char doorPrintout[6];
@@ -79,30 +74,26 @@ void setup() {
   pinMode(inTouchDown, INPUT);    // Declare push sensor as input
 
 
-  // Initialize the library
-  TFTscreen.begin();
-  // Clear the screen with a black background
-  TFTscreen.background(0, 0, 0);
-  // Set font color
-  TFTscreen.stroke(50, 50, 50);
-  //Set the text size
-  TFTscreen.setTextSize(2);
-
+  // Initialize the LCD screen
+  lcd.init(PHILIPS);  // Initializes lcd, using an PHILIPSdriver
+  lcd.contrast(-61);  // -51's usually a good contrast value
+  lcd.clear(WHITE);  // clear the screen
+  
   // Print static text
-  TFTscreen.text("< Chickenz >", 5, 2);
-  TFTscreen.text("------------", 5, 12);
-  TFTscreen.text("Door:", 5, 25);
-  TFTscreen.text("Engine:", 5, 45);
-  TFTscreen.text("System:", 5, 65);
-  TFTscreen.text("Open:", 5, 85);
-  TFTscreen.text("Close:", 5, 105);
+  lcd.setStr("< Chickenz >", 2, 15, BLACK, WHITE);
+  lcd.setLine(23, 5, 23, 125, BLACK);
+  lcd.setStr("Door:", 25, 5, BLACK, WHITE);
+  lcd.setStr("Engine:", 45, 5, BLACK, WHITE);
+  lcd.setStr("System:", 65, 5, BLACK, WHITE);
+  lcd.setStr("Open:", 85, 5, BLACK, WHITE);
+  lcd.setStr("Close:", 105, 5, BLACK, WHITE);
 
   // Print default status messages
-  printStatus(doorPrintout, "Shut", 25);
-  printStatus(enginePrintout, "Off", 45);
-  printStatus(systemPrintout, "Auto", 65);
-  printStatus(openTimePrintout, getOpenTime(), 85);
-  printStatus(closeTimePrintout, getCloseTime(), 105);
+  printStatus(doorPrintout, "Shut", 25, V5);
+  printStatus(enginePrintout, "Off", 45, V6);
+  printStatus(systemPrintout, "Auto", 65, V7);
+  printStatus(openTimePrintout, getOpenTime(), 85, V8);
+  printStatus(closeTimePrintout, getCloseTime(), 105, V9);
 }
 
 void loop() {  
@@ -180,20 +171,20 @@ void loop() {
   if (valButtonUp == HIGH && manualOverride && doorIsOpen) {
     Serial.print("Re-activating automatic schedule");
     manualOverride = false;
-    printStatus(systemPrintout, "Auto", 65);
-    delay(2000);
+    printStatus(systemPrintout, "Auto", 65, V7);
+    delay(1000);
   } else {
     if (valButtonUp == HIGH) {         // check if the input is HIGH (button released)
       digitalWrite(ledPin, HIGH);  // turn LED ON
       Serial.print("Manually opening door\n");
       manualOverride = true;
-      printStatus(systemPrintout, "Man", 65);
+      printStatus(systemPrintout, "Man", 65, V7);
       openDoor();
     } else if (valButtonDown == HIGH) {         // check if the input is HIGH (button released)
       digitalWrite(ledPin, HIGH);  // turn LED ON
       Serial.print("Manually closing door\n");
       manualOverride = true;
-      printStatus(systemPrintout, "Man", 65);
+      printStatus(systemPrintout, "Man", 65, V7);
       closeDoor();
     } else {
       digitalWrite(ledPin, LOW);  // turn LED OFF
@@ -204,7 +195,7 @@ void loop() {
 void doorMove(uint8_t direction) {
   uint8_t i;
   
-  printStatus(enginePrintout, "On", 45);
+  printStatus(enginePrintout, "On", 45, V6);
   
   myMotor->run(direction);
   for (i=0; i<255; i++) {
@@ -218,45 +209,45 @@ void stopDoor() {
   myMotor->run(RELEASE);
   engineRunning = 0;
   delay(500); //Wait for engine to stop
-  printStatus(enginePrintout, "Off", 45);
+  printStatus(enginePrintout, "Off", 45, V6);
 }
 
 void doorIsDown() {
     stopDoor();
     doorIsOpen = 0;
     Serial.print("Door closed\n");
-    printStatus(doorPrintout, "Shut", 25);
+    printStatus(doorPrintout, "Shut", 25, V5);
 }
 
 void doorIsUp() {
     stopDoor();
     doorIsOpen = 1;
     Serial.print("Door open\n");
-    printStatus(doorPrintout, "Open", 25);
+    printStatus(doorPrintout, "Open", 25, V5);
 }
 
 void closeDoor() {  
   if(doorIsOpen && !engineRunning) {
+    printStatus(doorPrintout, "\\/", 25, V5);
     doorMove(FORWARD);
   }
 }
 
 void openDoor() {
   if(!doorIsOpen && !engineRunning) {
+    printStatus(doorPrintout, "/\\", 25, V5);
     doorMove(BACKWARD);
   }
 }
 
-void printStatus(char variable[6], String status, int y) {
-  int x = 95;
+void printStatus(char variable[6], String status, int y, int pin) {
+  int x = 75;
   // Remove current status
-  TFTscreen.stroke(0, 0, 0);
-  TFTscreen.text(variable, x, y);
+  lcd.setStr(variable, y, x, WHITE, WHITE);
 
   // Print new status
-  TFTscreen.stroke(50, 50, 50);
   status.toCharArray(variable, 6);
-  TFTscreen.text(variable, x, y);
+  lcd.setStr(variable, y, x, BLACK, WHITE);
 }
 
 String getOpenTime() {
